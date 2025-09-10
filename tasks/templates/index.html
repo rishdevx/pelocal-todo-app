@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>To-Do List</title>
+</head>
+<body>
+    <h1>To-Do List</h1>
+
+    <h2>Add Task</h2>
+    <form id="task-form">
+        <input type="text" name="title" placeholder="Title" required>
+        <input type="text" name="description" placeholder="Description">
+        <input type="date" name="due_date">
+        <select name="status">
+            <option>Pending</option>
+            <option>Completed</option>
+        </select>
+        <button type="submit">Add</button>
+    </form>
+
+    <h2>Tasks</h2>
+    <ul id="task-list"></ul>
+
+    <script>
+    async function loadTasks(){
+        const res = await fetch('/tasks/');
+        const tasks = await res.json();
+        const list = document.getElementById('task-list');
+        list.innerHTML = '';
+        tasks.forEach(t => {
+            const li = document.createElement('li');
+            li.innerHTML = `<strong>${t.title}</strong> - ${t.status}
+                <button onclick="deleteTask(${t.id})">Delete</button>
+                <button onclick="editPrompt(${t.id}, '${(t.title||'').replace("'", "\\'")}')">Edit</button>
+                <div>${t.description||''} ${t.due_date ? '('+t.due_date+')' : ''}</div>`;
+            list.appendChild(li);
+        });
+    }
+
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        await fetch('/tasks/', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(data)
+        });
+        e.target.reset();
+        loadTasks();
+    });
+
+    async function deleteTask(id){
+        await fetch(`/tasks/${id}/`, {method:'DELETE'});
+        loadTasks();
+    }
+
+    async function editPrompt(id){
+    
+    const res = await fetch(`/tasks/${id}/`);
+    const task = await res.json();
+
+    const newTitle = prompt('Title:', task.title);
+    const newDesc = prompt('Description:', task.description);
+    const newStatus = prompt('Status (Pending/Completed):', task.status);
+    const newDueDate = prompt('Due Date (YYYY-MM-DD):', task.due_date || "");
+
+    const updatedData = {};
+    if (newTitle !== null && newTitle !== task.title) updatedData.title = newTitle;
+    if (newDesc !== null && newDesc !== task.description) updatedData.description = newDesc;
+    if (newStatus !== null && newStatus !== task.status) updatedData.status = newStatus;
+    if (newDueDate !== null && newDueDate !== task.due_date) updatedData.due_date = newDueDate;
+
+    if (Object.keys(updatedData).length > 0) {
+        await fetch(`/tasks/${id}/`, {
+            method:'PATCH',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(updatedData)
+        });
+    }
+
+    loadTasks();  
+}
+
+    document.addEventListener('DOMContentLoaded', loadTasks);
+    </script>
+
+</body>
+</html>
